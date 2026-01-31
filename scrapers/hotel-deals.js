@@ -41,7 +41,19 @@ const CONFIG = {
   ],
 
   // Minimum discount to include (percentage)
-  minDiscountPercent: 25
+  minDiscountPercent: 25,
+
+  // Day-based rotation: spread 20 destinations across days to stay under 10 min
+  // Each day processes 5-7 destinations
+  dayRotation: {
+    0: [0, 1, 2, 3, 4, 5, 6],           // Sunday: Paris, London, Tokyo, Rome, Barcelona, Cancun, NYC
+    1: [7, 8, 9, 10, 11, 12],           // Monday: Vegas, Miami, Honolulu, SF, LA, Amsterdam
+    2: [13, 14, 15, 16, 17],            // Tuesday: Dublin, Lisbon, Bangkok, Singapore, Bali
+    3: [18, 19, 0, 1, 2],               // Wednesday: Phuket, Maldives, Paris, London, Tokyo
+    4: [3, 4, 5, 6, 7, 8],              // Thursday: Rome, Barcelona, Cancun, NYC, Vegas, Miami
+    5: [9, 10, 11, 12, 13, 14],         // Friday: Honolulu, SF, LA, Amsterdam, Dublin, Lisbon
+    6: [0, 1, 2, 15, 16, 17, 18, 19]    // Saturday: Top Europe + Asia destinations
+  }
 };
 
 /**
@@ -93,8 +105,8 @@ async function scrapeGoogleHotels(page, destination) {
     // Google Hotels search URL
     const searchUrl = `https://www.google.com/travel/hotels/${encodeURIComponent(destination.searchTerm)}?q=${encodeURIComponent(destination.searchTerm + ' hotels')}&g2lb=4814050,4874190,4893075,4965990,4969803,72277293,72302247,72317059,72406588,72414906,72421566,72471280,72472051,72481459,72485658,72499705,72513513,72536387,72538597,72549171,72560029,72570850,72592643&hl=en-US&gl=us&cs=1&ssta=1&ts=CAESABogCgIaABIaEhQKBwjoDxAJGBESBwjoDxAJGBIYATICEAAqCQoFOgNVU0QaAA&ap=MAFoAQ`;
 
-    await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 45000 });
-    await page.waitForTimeout(4000); // Let hotel cards load
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.waitForTimeout(2500); // Let hotel cards load
 
     // Try to find hotel cards with prices and discounts
     // Google Hotels shows "Usually $X" with current price
@@ -168,8 +180,8 @@ async function scrapeHotelDealPages(page) {
 
   // Try to scrape Kayak deals page
   try {
-    await page.goto('https://www.kayak.com/deals', { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForTimeout(3000);
+    await page.goto('https://www.kayak.com/deals', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout(2000);
 
     // Look for hotel deal cards
     const dealCards = await page.$$('[data-resultid], .resultWrapper');
@@ -206,11 +218,27 @@ async function scrapeHotelDealPages(page) {
 }
 
 /**
+ * Get today's rotation config for day-based scraping
+ */
+function getTodayRotation() {
+  const dayOfWeek = new Date().getDay();
+  return CONFIG.dayRotation[dayOfWeek];
+}
+
+/**
  * Main scraper function
+ * Uses day-based rotation to process a subset of destinations each day
+ * Full coverage achieved over a week, each day runs in ~5-8 minutes
  */
 async function scrapeHotelDeals() {
-  console.log('Starting hotel deals scraper...');
-  console.log(`Checking ${CONFIG.destinations.length} destinations`);
+  const rotation = getTodayRotation();
+  const todaysDestinations = rotation.map(i => CONFIG.destinations[i]);
+  const dayOfWeek = new Date().getDay();
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  console.log('Starting hotel deals scraper (optimized day rotation)...');
+  console.log(`Today is ${dayNames[dayOfWeek]} - Day ${dayOfWeek} rotation`);
+  console.log(`Checking ${todaysDestinations.length} destinations: ${todaysDestinations.map(d => d.name).join(', ')}`);
 
   const browser = await chromium.launch({
     headless: true,
@@ -225,23 +253,29 @@ async function scrapeHotelDeals() {
   const page = await context.newPage();
   let allDeals = [];
 
-  // Scrape Google Hotels for each destination
-  for (const dest of CONFIG.destinations) {
+  // Scrape Google Hotels for today's destinations only
+  for (const dest of todaysDestinations) {
     console.log(`\nSearching hotels in ${dest.name}...`);
     const deals = await scrapeGoogleHotels(page, dest);
     console.log(`  Found ${deals.length} deals`);
     allDeals = allDeals.concat(deals);
 
-    // Rate limiting
-    await page.waitForTimeout(3000 + Math.random() * 2000);
+    // Reduced rate limiting - 1.5-2.5 seconds instead of 3-5
+    await page.waitForTimeout(1500 + Math.random() * 1000);
   }
 
-  // Also check deal aggregator pages
-  console.log('\nChecking deal aggregator pages...');
-  const aggregatorDeals = await scrapeHotelDealPages(page);
-  allDeals = allDeals.concat(aggregatorDeals);
+  // Check deal aggregator pages (only on weekends when we have more time)
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    console.log('\nChecking deal aggregator pages...');
+    const aggregatorDeals = await scrapeHotelDealPages(page);
+    allDeals = allDeals.concat(aggregatorDeals);
+  }
 
   await browser.close();
+
+  // Load existing deals from previous days and merge
+  const existingDeals = loadExistingDeals();
+  allDeals = allDeals.concat(existingDeals);
 
   // Deduplicate and sort by best discount
   const uniqueDeals = deduplicateDeals(allDeals);
@@ -250,9 +284,35 @@ async function scrapeHotelDeals() {
   // Take top 20 hotel deals
   const topDeals = sortedDeals.slice(0, 20);
 
-  console.log(`\nFound ${topDeals.length} great hotel deals!`);
+  console.log(`\nFound ${topDeals.length} great hotel deals (including merged from previous runs)!`);
 
   return topDeals;
+}
+
+/**
+ * Load existing deals from previous runs (for merging across days)
+ * Only includes deals from the last 7 days
+ */
+function loadExistingDeals() {
+  try {
+    const filePath = path.join(__dirname, '..', 'output', 'hotels.json');
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Filter to only include deals scraped within last 7 days
+      const recentDeals = (data.deals || []).filter(deal => {
+        const scrapedAt = new Date(deal.scrapedAt);
+        return scrapedAt > sevenDaysAgo;
+      });
+
+      console.log(`Loaded ${recentDeals.length} existing deals from previous runs`);
+      return recentDeals;
+    }
+  } catch (err) {
+    console.log('No existing deals to merge (first run or file error)');
+  }
+  return [];
 }
 
 /**
