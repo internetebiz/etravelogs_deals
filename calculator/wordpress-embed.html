@@ -1,0 +1,248 @@
+<!--
+  eTravelogs Slim Miles Calculator - WordPress Embed Version
+
+  HOW TO USE IN WORDPRESS:
+  ========================
+  Option 1: Use Custom HTML Block
+  - In WordPress editor, add a "Custom HTML" block
+  - Paste this entire code into the block
+  - Preview and publish
+
+  Option 2: Use Code Snippets Plugin
+  - Install "Code Snippets" or "Insert Headers and Footers" plugin
+  - Create a shortcode that outputs this HTML
+  - Use [miles_calculator] shortcode in your pages
+
+  Option 3: Add to Theme
+  - Add this to your theme's custom JS/CSS
+  - Create a template part for the calculator
+
+  NOTE: Replace YOUR_EXPEDIA_AFFILIATE_ID with your actual Expedia affiliate ID (1011l387199)
+-->
+
+<div id="etl-calculator" class="etl-calculator-wrapper">
+  <style>
+    .etl-calculator-wrapper {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 100%;
+      margin: 20px auto;
+    }
+    .etl-calc-box {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 25px;
+    }
+    .etl-calc-title {
+      color: #1a365d;
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .etl-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .etl-tab {
+      padding: 8px 16px;
+      border: 2px solid #e53e3e;
+      background: white;
+      color: #e53e3e;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .etl-tab:hover { background: #fff5f5; }
+    .etl-tab.active { background: #e53e3e; color: white; }
+    .etl-field { margin-bottom: 16px; }
+    .etl-field label {
+      display: block;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .etl-field select, .etl-field input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    .etl-field select:focus, .etl-field input:focus {
+      outline: none;
+      border-color: #e53e3e;
+    }
+    .etl-btn {
+      width: 100%;
+      padding: 12px;
+      background: #e53e3e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .etl-btn:hover { background: #c53030; }
+    .etl-results {
+      margin-top: 20px;
+      padding: 16px;
+      background: #f7fafc;
+      border-radius: 8px;
+      display: none;
+    }
+    .etl-results.show { display: block; }
+    .etl-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a365d;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .etl-rec {
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .etl-rec.points { background: #c6f6d5; color: #22543d; }
+    .etl-rec.cash { background: #fed7d7; color: #742a2a; }
+    .etl-rec-title { font-size: 18px; font-weight: 700; }
+    .etl-details { font-size: 13px; color: #4a5568; line-height: 1.5; }
+    .etl-details p { margin: 6px 0; }
+    .etl-cta { margin-top: 16px; text-align: center; }
+    .etl-cta a {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #2b6cb0;
+      color: white !important;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .etl-cta a:hover { background: #2c5282; }
+    .etl-note {
+      margin-top: 16px;
+      font-size: 11px;
+      color: #718096;
+      text-align: center;
+    }
+  </style>
+
+  <div class="etl-calc-box">
+    <h3 class="etl-calc-title">Miles Points vs Cash Calculator</h3>
+
+    <div class="etl-tabs">
+      <button class="etl-tab active" onclick="etlSwitchTab('airline', this)">Airline</button>
+      <button class="etl-tab" onclick="etlSwitchTab('hotel', this)">Hotel</button>
+      <button class="etl-tab" onclick="etlSwitchTab('card', this)">Credit Card</button>
+    </div>
+
+    <div class="etl-field">
+      <label>Select Program:</label>
+      <select id="etl-program"></select>
+    </div>
+
+    <div class="etl-field">
+      <label>Enter Points/Miles:</label>
+      <input type="number" id="etl-points" placeholder="e.g., 50000">
+    </div>
+
+    <div class="etl-field">
+      <label>Cash Price ($):</label>
+      <input type="number" id="etl-cash" placeholder="e.g., 800" step="0.01">
+    </div>
+
+    <button class="etl-btn" onclick="etlCalculate()">Calculate</button>
+
+    <div class="etl-results" id="etl-results">
+      <div class="etl-value" id="etl-value"></div>
+      <div class="etl-rec" id="etl-rec">
+        <div class="etl-rec-title" id="etl-rec-title"></div>
+        <div id="etl-rec-text"></div>
+      </div>
+      <div class="etl-details" id="etl-details"></div>
+      <div class="etl-cta" id="etl-cta"></div>
+    </div>
+
+    <p class="etl-note">*Values are estimates. Confirm with your provider. <a href="https://etravelogs.com/miles-points-vs-cash-calculator/">Learn more</a></p>
+  </div>
+
+  <script>
+    (function() {
+      const V = {
+        airline: [
+          {n:"Air Canada Aeroplan",c:0.02},{n:"Alaska Mileage Plan",c:0.02},
+          {n:"American AAdvantage",c:0.01},{n:"Delta SkyMiles",c:0.01},
+          {n:"JetBlue TrueBlue",c:0.01},{n:"Southwest Rapid Rewards",c:0.02},
+          {n:"United MileagePlus",c:0.01},{n:"British Airways Avios",c:0.01},
+          {n:"Emirates Skywards",c:0.01},{n:"Singapore KrisFlyer",c:0.02}
+        ],
+        hotel: [
+          {n:"Marriott Bonvoy",c:0.01},{n:"Hilton Honors",c:0.01},
+          {n:"Hyatt World of Hyatt",c:0.02},{n:"IHG One Rewards",c:0.01},
+          {n:"Wyndham Rewards",c:0.01},{n:"Choice Privileges",c:0.01}
+        ],
+        card: [
+          {n:"Chase Ultimate Rewards",c:0.02},{n:"Amex Membership Rewards",c:0.02},
+          {n:"Capital One Venture",c:0.01},{n:"Citi ThankYou",c:0.015}
+        ]
+      };
+      let t='airline';
+
+      window.etlSwitchTab = function(tab, btn) {
+        t = tab;
+        document.querySelectorAll('.etl-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const s = document.getElementById('etl-program');
+        s.innerHTML = V[tab].map(p => `<option value="${p.c}">${p.n}</option>`).join('');
+        document.getElementById('etl-results').classList.remove('show');
+      };
+
+      window.etlCalculate = function() {
+        const cpp = parseFloat(document.getElementById('etl-program').value);
+        const pts = parseInt(document.getElementById('etl-points').value);
+        const cash = parseFloat(document.getElementById('etl-cash').value);
+        if (!pts || !cash) return alert('Please fill in all fields');
+
+        const val = pts * cpp;
+        const useP = val >= cash;
+        const diff = Math.abs(val - cash);
+
+        document.getElementById('etl-value').textContent =
+          `Your ${pts.toLocaleString()} points = $${val.toFixed(2)}`;
+
+        const rec = document.getElementById('etl-rec');
+        rec.className = 'etl-rec ' + (useP ? 'points' : 'cash');
+        document.getElementById('etl-rec-title').textContent =
+          useP ? '✈️ USE YOUR POINTS' : '💵 PAY CASH';
+        document.getElementById('etl-rec-text').textContent =
+          useP ? `Great value at ${((val/cash)*100).toFixed(0)}% of cash price!`
+               : `Save points - you'd lose $${diff.toFixed(2)} in value`;
+
+        document.getElementById('etl-details').innerHTML =
+          `<p>Point value: ${(cpp*100).toFixed(1)}¢ | Your rate: ${((cash/pts)*100).toFixed(2)}¢</p>`;
+
+        const aff = 'AFFCID=US.DIRECT.PHG.1011l387199.etravelogs';
+        document.getElementById('etl-cta').innerHTML = t === 'airline'
+          ? `<a href="https://www.expedia.com/Flights?${aff}" target="_blank" rel="nofollow sponsored">Search Flights</a>`
+          : t === 'hotel'
+          ? `<a href="https://www.expedia.com/Hotels?${aff}" target="_blank" rel="nofollow sponsored">Search Hotels</a>`
+          : `<a href="https://etravelogs.com/daily-deals/">View Today's Deals</a>`;
+
+        document.getElementById('etl-results').classList.add('show');
+      };
+
+      // Init
+      etlSwitchTab('airline', document.querySelector('.etl-tab'));
+    })();
+  </script>
+</div>

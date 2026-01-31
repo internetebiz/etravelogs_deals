@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Miles Points vs Cash Calculator - eTravelogs</title>
+  <style>
+    /* Slim Calculator Styles - Match eTravelogs design */
+    .calculator-container {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .calculator-box {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+    }
+
+    .calculator-title {
+      color: #1a365d;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .tab-container {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      justify-content: center;
+    }
+
+    .tab-button {
+      padding: 10px 20px;
+      border: 2px solid #e53e3e;
+      background: white;
+      color: #e53e3e;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .tab-button:hover {
+      background: #fff5f5;
+    }
+
+    .tab-button.active {
+      background: #e53e3e;
+      color: white;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .form-group select,
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+
+    .form-group select:focus,
+    .form-group input:focus {
+      outline: none;
+      border-color: #e53e3e;
+    }
+
+    .calculate-btn {
+      width: 100%;
+      padding: 14px;
+      background: #e53e3e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .calculate-btn:hover {
+      background: #c53030;
+    }
+
+    .results {
+      margin-top: 24px;
+      padding: 20px;
+      background: #f7fafc;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .results.show {
+      display: block;
+    }
+
+    .result-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1a365d;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .recommendation {
+      text-align: center;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .recommendation.use-points {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .recommendation.use-cash {
+      background: #fed7d7;
+      color: #742a2a;
+    }
+
+    .recommendation-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .result-details {
+      font-size: 14px;
+      color: #4a5568;
+      line-height: 1.6;
+    }
+
+    .result-details p {
+      margin: 8px 0;
+    }
+
+    .affiliate-cta {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .affiliate-cta a {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #2b6cb0;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .affiliate-cta a:hover {
+      background: #2c5282;
+    }
+
+    .calculator-disclaimer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #718096;
+      text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .tab-container {
+        flex-wrap: wrap;
+      }
+      .tab-button {
+        flex: 1;
+        min-width: 80px;
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="calculator-container">
+    <div class="calculator-box">
+      <h2 class="calculator-title">Miles Points vs Cash Calculator</h2>
+
+      <div class="tab-container">
+        <button class="tab-button active" data-tab="airline" onclick="switchTab('airline')">Airline</button>
+        <button class="tab-button" data-tab="hotel" onclick="switchTab('hotel')">Hotel</button>
+        <button class="tab-button" data-tab="creditcard" onclick="switchTab('creditcard')">Credit Card</button>
+      </div>
+
+      <form id="calculatorForm" onsubmit="calculate(event)">
+        <div class="form-group">
+          <label for="program">Select Program:</label>
+          <select id="program" required>
+            <!-- Populated by JavaScript -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="points">Enter Points/Miles:</label>
+          <input type="number" id="points" placeholder="e.g., 50000" required min="1">
+        </div>
+
+        <div class="form-group">
+          <label for="cashPrice">Cash Price ($):</label>
+          <input type="number" id="cashPrice" placeholder="e.g., 800" required min="1" step="0.01">
+        </div>
+
+        <button type="submit" class="calculate-btn">Calculate</button>
+      </form>
+
+      <div class="results" id="results">
+        <div class="result-value" id="pointsValue"></div>
+        <div class="recommendation" id="recommendation">
+          <div class="recommendation-title" id="recommendationTitle"></div>
+          <div id="recommendationText"></div>
+        </div>
+        <div class="result-details" id="resultDetails"></div>
+        <div class="affiliate-cta" id="affiliateCta"></div>
+      </div>
+
+      <p class="calculator-disclaimer">
+        *Calculator values are estimates based on industry-standard redemption rates.
+        Please confirm with your airline, hotel, or credit card provider.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Points valuations data (embedded for fast loading)
+    const VALUATIONS = {
+      airline: [
+        { issuer: "Air Canada", program: "Aeroplan", cpp: 0.02 },
+        { issuer: "Alaska Airlines", program: "Mileage Plan", cpp: 0.02 },
+        { issuer: "American Airlines", program: "AAdvantage", cpp: 0.01 },
+        { issuer: "ANA", program: "Mileage Club", cpp: 0.02 },
+        { issuer: "British Airways", program: "Executive Club", cpp: 0.01 },
+        { issuer: "Cathay Pacific", program: "Asia Miles", cpp: 0.02 },
+        { issuer: "Delta Airlines", program: "SkyMiles", cpp: 0.01 },
+        { issuer: "Emirates", program: "Skywards", cpp: 0.01 },
+        { issuer: "Japan Airlines", program: "Mileage Bank", cpp: 0.02 },
+        { issuer: "JetBlue Airways", program: "TrueBlue", cpp: 0.01 },
+        { issuer: "Korean Air", program: "SKYPASS", cpp: 0.01 },
+        { issuer: "Lufthansa", program: "Miles & More", cpp: 0.01 },
+        { issuer: "Qantas", program: "Frequent Flyer", cpp: 0.01 },
+        { issuer: "Singapore Airlines", program: "KrisFlyer", cpp: 0.02 },
+        { issuer: "Southwest Airlines", program: "Rapid Rewards", cpp: 0.02 },
+        { issuer: "United Airlines", program: "MileagePlus", cpp: 0.01 },
+        { issuer: "Virgin Atlantic", program: "Flying Club", cpp: 0.01 }
+      ],
+      hotel: [
+        { issuer: "Accor", program: "Live Limitless", cpp: 0.02 },
+        { issuer: "Best Western", program: "Best Western Rewards", cpp: 0.01 },
+        { issuer: "Choice Hotels", program: "Choice Privileges", cpp: 0.01 },
+        { issuer: "Hilton", program: "Hilton Honors", cpp: 0.01 },
+        { issuer: "Hyatt", program: "World of Hyatt", cpp: 0.02 },
+        { issuer: "IHG", program: "One Rewards", cpp: 0.01 },
+        { issuer: "Marriott", program: "Bonvoy", cpp: 0.01 },
+        { issuer: "Radisson", program: "Rewards Americas", cpp: 0.005 },
+        { issuer: "Wyndham", program: "Rewards", cpp: 0.01 }
+      ],
+      creditcard: [
+        { issuer: "American Express", program: "Membership Rewards", cpp: 0.02 },
+        { issuer: "American Express", program: "Gold Card", cpp: 0.02 },
+        { issuer: "American Express", program: "Platinum Card", cpp: 0.02 },
+        { issuer: "Chase", program: "Ultimate Rewards", cpp: 0.02 },
+        { issuer: "Chase", program: "Sapphire Preferred", cpp: 0.02 },
+        { issuer: "Chase", program: "Sapphire Reserve", cpp: 0.02 },
+        { issuer: "Capital One", program: "Venture Miles", cpp: 0.01 },
+        { issuer: "Citi", program: "ThankYou Points", cpp: 0.015 }
+      ]
+    };
+
+    let currentTab = 'airline';
+
+    function switchTab(tab) {
+      currentTab = tab;
+
+      // Update tab buttons
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tab) btn.classList.add('active');
+      });
+
+      // Populate dropdown
+      populatePrograms(tab);
+
+      // Hide results
+      document.getElementById('results').classList.remove('show');
+    }
+
+    function populatePrograms(tab) {
+      const select = document.getElementById('program');
+      select.innerHTML = '';
+
+      const programs = VALUATIONS[tab] || [];
+      programs.forEach(p => {
+        const option = document.createElement('option');
+        option.value = JSON.stringify(p);
+        option.textContent = `${p.issuer} - ${p.program}`;
+        select.appendChild(option);
+      });
+    }
+
+    function calculate(event) {
+      event.preventDefault();
+
+      const programData = JSON.parse(document.getElementById('program').value);
+      const points = parseInt(document.getElementById('points').value);
+      const cashPrice = parseFloat(document.getElementById('cashPrice').value);
+
+      // Calculate points value
+      const cpp = programData.cpp;
+      const pointsValue = (points * cpp);
+      const cppActual = (cashPrice / points) * 100;
+
+      // Determine recommendation
+      const usePoints = pointsValue >= cashPrice;
+      const difference = Math.abs(pointsValue - cashPrice);
+
+      // Update UI
+      document.getElementById('pointsValue').textContent =
+        `Your ${points.toLocaleString()} points are worth: $${pointsValue.toFixed(2)}`;
+
+      const recommendation = document.getElementById('recommendation');
+      const recommendationTitle = document.getElementById('recommendationTitle');
+      const recommendationText = document.getElementById('recommendationText');
+
+      if (usePoints) {
+        recommendation.className = 'recommendation use-points';
+        recommendationTitle.textContent = '✈️ USE YOUR POINTS';
+        recommendationText.textContent = `You'd get ${((pointsValue / cashPrice) * 100).toFixed(0)}% of the value. Great redemption!`;
+      } else {
+        recommendation.className = 'recommendation use-cash';
+        recommendationTitle.textContent = '💵 PAY CASH';
+        recommendationText.textContent = `Save your points for a better redemption. You'd lose $${difference.toFixed(2)} in value.`;
+      }
+
+      // Detailed breakdown
+      document.getElementById('resultDetails').innerHTML = `
+        <p><strong>Program:</strong> ${programData.issuer} ${programData.program}</p>
+        <p><strong>Standard valuation:</strong> ${(cpp * 100).toFixed(1)} cents per point</p>
+        <p><strong>Your redemption rate:</strong> ${cppActual.toFixed(2)} cents per point</p>
+        <p><strong>Points value:</strong> $${pointsValue.toFixed(2)}</p>
+        <p><strong>Cash price:</strong> $${cashPrice.toFixed(2)}</p>
+        <p><strong>Difference:</strong> ${usePoints ? '+' : '-'}$${difference.toFixed(2)}</p>
+      `;
+
+      // Affiliate CTA
+      const affiliateCta = document.getElementById('affiliateCta');
+      if (currentTab === 'airline') {
+        affiliateCta.innerHTML = `
+          <a href="https://www.expedia.com/Flights?AFFCID=US.DIRECT.PHG.1011l387199.etravelogs" target="_blank" rel="nofollow sponsored">
+            Search Flights on Expedia
+          </a>
+        `;
+      } else if (currentTab === 'hotel') {
+        affiliateCta.innerHTML = `
+          <a href="https://www.expedia.com/Hotels?AFFCID=US.DIRECT.PHG.1011l387199.etravelogs" target="_blank" rel="nofollow sponsored">
+            Search Hotels on Expedia
+          </a>
+        `;
+      } else {
+        affiliateCta.innerHTML = `
+          <a href="https://etravelogs.com/daily-deals/" target="_blank">
+            View Today's Best Deals
+          </a>
+        `;
+      }
+
+      // Show results
+      document.getElementById('results').classList.add('show');
+    }
+
+    // Initialize
+    populatePrograms('airline');
+  </script>
+</body>
+</html>

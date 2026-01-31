@@ -1,0 +1,72 @@
+name: Daily Deal Scraper
+
+on:
+  # Run daily at 6 AM EST (11:00 UTC)
+  schedule:
+    - cron: '0 11 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  scrape-deals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Create .env file
+        run: |
+          echo "EXPEDIA_AFFILIATE_TAG=${{ secrets.EXPEDIA_AFFILIATE_TAG }}" >> .env
+          echo "EXPEDIA_PUBLISHER_ID=${{ secrets.EXPEDIA_PUBLISHER_ID }}" >> .env
+
+      - name: Run deal scrapers
+        run: npm run scrape:all
+        timeout-minutes: 30
+
+      - name: Commit and push updated deals
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add output/*.json
+          git diff --staged --quiet || git commit -m "Update deals - $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deals-${{ github.run_number }}
+          path: output/*.json
+          retention-days: 7
+
+  # Optional: Notify via webhook when new deals are found
+  notify:
+    needs: scrape-deals
+    runs-on: ubuntu-latest
+    if: ${{ success() }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main # Get the latest commit with updated deals
+
+      - name: Send webhook notification
+        if: ${{ secrets.N8N_WEBHOOK_URL != '' }}
+        run: |
+          curl -X POST "${{ secrets.N8N_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d @output/deals.json
