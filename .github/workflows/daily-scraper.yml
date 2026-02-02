@@ -1,9 +1,10 @@
 name: Daily Deal Scraper
 
 on:
+  # DISABLED: Schedule disabled until runtime optimization is complete
   # Run daily at 6 AM EST (11:00 UTC)
-  schedule:
-    - cron: '0 11 * * *'
+  # schedule:
+  #   - cron: '0 11 * * *'
 
   # Allow manual trigger
   workflow_dispatch:
