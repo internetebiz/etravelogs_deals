@@ -1,9 +1,10 @@
 name: Daily Deal Scraper
 
 on:
+  # DISABLED: Schedule disabled until runtime optimization is complete
   # Run daily at 6 AM EST (11:00 UTC)
-  schedule:
-    - cron: '0 11 * * *'
+  # schedule:
+  #   - cron: '0 11 * * *'
 
   # Allow manual trigger
   workflow_dispatch:
@@ -11,6 +12,9 @@ on:
 jobs:
   scrape-deals:
     runs-on: ubuntu-latest
+    # Optimized runtime: ~10-15 minutes with day-based rotation
+    # Set timeout to 20 minutes for safety margin
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -21,10 +25,18 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package.json') }}
+
       - name: Install dependencies
         run: npm install
 
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium
 
       - name: Create .env file
@@ -32,16 +44,23 @@ jobs:
           echo "EXPEDIA_AFFILIATE_TAG=${{ secrets.EXPEDIA_AFFILIATE_TAG }}" >> .env
           echo "EXPEDIA_PUBLISHER_ID=${{ secrets.EXPEDIA_PUBLISHER_ID }}" >> .env
 
+      - name: Show rotation info
+        run: |
+          DAY=$(date +%u)
+          DAY_NAME=$(date +%A)
+          echo "Running day-based rotation for $DAY_NAME (day $DAY)"
+          echo "Optimized to run ~10-15 minutes with rotating subsets"
+
       - name: Run deal scrapers
         run: npm run scrape:all
-        timeout-minutes: 30
+        timeout-minutes: 18
 
       - name: Commit and push updated deals
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add output/*.json || true
-          git diff --staged --quiet || git commit -m "Update deals - $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git diff --staged --quiet || git commit -m "Update deals - $(date -u +'%Y-%m-%d %H:%M UTC') (day $(date +%u) rotation)"
           git push || true
 
       - name: Upload artifacts

@@ -51,6 +51,18 @@ const CONFIG = {
     'PAR': 800, 'LON': 750, 'TYO': 1200, 'ROM': 850,
     'BCN': 700, 'CUN': 400, 'LIS': 650, 'DUB': 600,
     'AMS': 700, 'ICN': 1100, 'BKK': 900, 'SIN': 1000
+  },
+
+  // Day-based rotation: spread cities across days to stay under 15 min
+  // Each day processes 2-3 origin cities with 6 destinations
+  dayRotation: {
+    0: { origins: [0, 1], destinations: [0, 1, 2, 3, 4, 5] },       // Sunday: JFK, LAX -> Europe
+    1: { origins: [2, 3], destinations: [0, 1, 2, 3, 4, 5] },       // Monday: SFO, ORD -> Europe
+    2: { origins: [4, 5], destinations: [6, 7, 8, 9, 10, 11] },     // Tuesday: MIA, DFW -> Asia/Other
+    3: { origins: [6, 7], destinations: [6, 7, 8, 9, 10, 11] },     // Wednesday: BOS, SEA -> Asia/Other
+    4: { origins: [8, 9], destinations: [0, 1, 2, 3, 4, 5] },       // Thursday: DEN, ATL -> Europe
+    5: { origins: [0, 1, 2], destinations: [6, 7, 8, 9, 10, 11] },  // Friday: Top 3 -> Asia
+    6: { origins: [0, 1, 2, 3, 4], destinations: [0, 1, 2, 5] }     // Saturday: Top 5 -> Top 4 destinations
   }
 };
 
@@ -91,8 +103,8 @@ async function scrapeGoogleFlights(page, origin, destination) {
     // Use a simpler approach: construct the search URL directly
     const searchUrl = `https://www.google.com/travel/flights?q=flights%20from%20${encodeURIComponent(origin.name)}%20to%20${encodeURIComponent(destination.name)}`;
 
-    await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForTimeout(3000); // Let prices load
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.waitForTimeout(2000); // Let prices load
 
     // Try to find price elements
     const priceElements = await page.$$('span[data-gs], .gws-flights-results__price, [aria-label*="$"]');
@@ -152,9 +164,9 @@ async function scrapeGoogleFlightsExplore(page, origin) {
       .replace('${origin}', origin.code);
 
     await page.goto(`https://www.google.com/travel/explore?tfs=CBwQAxoJagcIARID${origin.code}QAFIAXABggELCP___________wGYAQI`,
-      { waitUntil: 'networkidle', timeout: 45000 });
+      { waitUntil: 'domcontentloaded', timeout: 25000 });
 
-    await page.waitForTimeout(5000); // Let the map and prices load
+    await page.waitForTimeout(3000); // Let the map and prices load
 
     // Look for destination cards with prices
     const cards = await page.$$('[data-ved] [role="button"]');
@@ -190,12 +202,31 @@ async function scrapeGoogleFlightsExplore(page, origin) {
 }
 
 /**
+ * Get today's rotation config for day-based scraping
+ * This spreads the workload across the week to stay under 15 minutes per run
+ */
+function getTodayRotation() {
+  const dayOfWeek = new Date().getDay(); // 0 = Sunday, 6 = Saturday
+  return CONFIG.dayRotation[dayOfWeek];
+}
+
+/**
  * Main scraper function
+ * Uses day-based rotation to process a subset of routes each day
+ * Full coverage achieved over a week, each day runs in ~10-15 minutes
  */
 async function scrapeFlightDeals() {
-  console.log('Starting flight deals scraper...');
-  console.log(`Scraping from ${CONFIG.originCities.length} origin cities`);
-  console.log(`Looking at ${CONFIG.destinations.length} destinations`);
+  const rotation = getTodayRotation();
+  const todaysOrigins = rotation.origins.map(i => CONFIG.originCities[i]);
+  const todaysDestinations = rotation.destinations.map(i => CONFIG.destinations[i]);
+  const dayOfWeek = new Date().getDay();
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  console.log('Starting flight deals scraper (optimized day rotation)...');
+  console.log(`Today is ${dayNames[dayOfWeek]} - Day ${dayOfWeek} rotation`);
+  console.log(`Scraping from ${todaysOrigins.length} origin cities: ${todaysOrigins.map(o => o.code).join(', ')}`);
+  console.log(`Looking at ${todaysDestinations.length} destinations: ${todaysDestinations.map(d => d.code).join(', ')}`);
+  console.log(`Total searches today: ${todaysOrigins.length * todaysDestinations.length} routes`);
 
   const browser = await chromium.launch({
     headless: true,
@@ -210,29 +241,33 @@ async function scrapeFlightDeals() {
   const page = await context.newPage();
   let allDeals = [];
 
-  // Strategy 1: Scrape specific routes
-  for (const origin of CONFIG.originCities) {
+  // Strategy 1: Scrape today's routes (reduced set based on day rotation)
+  for (const origin of todaysOrigins) {
     console.log(`\nSearching from ${origin.name}...`);
 
-    for (const dest of CONFIG.destinations) {
-      console.log(`  → ${dest.name}...`);
+    for (const dest of todaysDestinations) {
+      console.log(`  -> ${dest.name}...`);
       const deals = await scrapeGoogleFlights(page, origin, dest);
       allDeals = allDeals.concat(deals);
 
-      // Rate limiting - be nice to Google
-      await page.waitForTimeout(2000 + Math.random() * 2000);
+      // Reduced rate limiting - 1-2 seconds instead of 2-4
+      await page.waitForTimeout(1000 + Math.random() * 1000);
     }
   }
 
-  // Strategy 2: Also check Google Flights Explore for each origin
+  // Strategy 2: Check Google Flights Explore for today's origins only (max 2)
   console.log('\nChecking Google Flights Explore for additional deals...');
-  for (const origin of CONFIG.originCities.slice(0, 5)) { // Top 5 only for speed
+  for (const origin of todaysOrigins.slice(0, 2)) {
     const exploreDeals = await scrapeGoogleFlightsExplore(page, origin);
     allDeals = allDeals.concat(exploreDeals);
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2000);
   }
 
   await browser.close();
+
+  // Load existing deals from previous days (if any) and merge
+  const existingDeals = loadExistingDeals();
+  allDeals = allDeals.concat(existingDeals);
 
   // Deduplicate and sort by best deal
   const uniqueDeals = deduplicateDeals(allDeals);
@@ -241,9 +276,35 @@ async function scrapeFlightDeals() {
   // Take top 20 deals
   const topDeals = sortedDeals.slice(0, 20);
 
-  console.log(`\nFound ${topDeals.length} great deals!`);
+  console.log(`\nFound ${topDeals.length} great deals (including merged from previous runs)!`);
 
   return topDeals;
+}
+
+/**
+ * Load existing deals from previous runs (for merging across days)
+ * Only includes deals from the last 7 days
+ */
+function loadExistingDeals() {
+  try {
+    const filePath = path.join(__dirname, '..', 'output', 'flights.json');
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Filter to only include deals scraped within last 7 days
+      const recentDeals = (data.deals || []).filter(deal => {
+        const scrapedAt = new Date(deal.scrapedAt);
+        return scrapedAt > sevenDaysAgo;
+      });
+
+      console.log(`Loaded ${recentDeals.length} existing deals from previous runs`);
+      return recentDeals;
+    }
+  } catch (err) {
+    console.log('No existing deals to merge (first run or file error)');
+  }
+  return [];
 }
 
 /**

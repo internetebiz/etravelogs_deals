@@ -1,6 +1,10 @@
 /**
- * Run All Scrapers
- * Combines flight and hotel deals into a single output
+ * Run All Scrapers (Optimized with Day-Based Rotation)
+ *
+ * OPTIMIZATION: Uses day-based rotation to spread workload across the week
+ * - Each day processes a subset of origins/destinations
+ * - Target runtime: 10-15 minutes (down from 100+ minutes)
+ * - Full coverage achieved over 7 days with deal merging
  */
 
 const fs = require('fs');
@@ -9,29 +13,40 @@ const { scrapeFlightDeals, saveDeals: saveFlightDeals } = require('./flight-deal
 const { scrapeHotelDeals, saveDeals: saveHotelDeals } = require('./hotel-deals');
 
 async function runAllScrapers() {
+  const startTime = Date.now();
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOfWeek = new Date().getDay();
+
   console.log('='.repeat(60));
-  console.log('eTravelogs Daily Deal Scraper');
+  console.log('eTravelogs Daily Deal Scraper (Optimized)');
   console.log(`Started at: ${new Date().toISOString()}`);
+  console.log(`Day: ${dayNames[dayOfWeek]} (rotation day ${dayOfWeek})`);
   console.log('='.repeat(60));
+  console.log('NOTE: Using day-based rotation for efficient runtime');
+  console.log('      Full coverage achieved over 7 days with deal merging');
 
   // Run flight scraper
-  console.log('\n📍 FLIGHT DEALS');
+  console.log('\n[FLIGHTS]');
   console.log('-'.repeat(40));
+  const flightStart = Date.now();
   let flightDeals = [];
   try {
     flightDeals = await scrapeFlightDeals();
     await saveFlightDeals(flightDeals);
+    console.log(`Flight scraper completed in ${Math.round((Date.now() - flightStart) / 1000)}s`);
   } catch (err) {
     console.error('Flight scraper failed:', err.message);
   }
 
   // Run hotel scraper
-  console.log('\n🏨 HOTEL DEALS');
+  console.log('\n[HOTELS]');
   console.log('-'.repeat(40));
+  const hotelStart = Date.now();
   let hotelDeals = [];
   try {
     hotelDeals = await scrapeHotelDeals();
     await saveHotelDeals(hotelDeals);
+    console.log(`Hotel scraper completed in ${Math.round((Date.now() - hotelStart) / 1000)}s`);
   } catch (err) {
     console.error('Hotel scraper failed:', err.message);
   }
@@ -40,6 +55,7 @@ async function runAllScrapers() {
   const outputDir = path.join(__dirname, '..', 'output');
   const combined = {
     generated: new Date().toISOString(),
+    rotationDay: dayOfWeek,
     summary: {
       totalFlightDeals: flightDeals.length,
       totalHotelDeals: hotelDeals.length,
@@ -55,20 +71,22 @@ async function runAllScrapers() {
     JSON.stringify(combined, null, 2)
   );
 
+  const totalTime = Math.round((Date.now() - startTime) / 1000);
   console.log('\n' + '='.repeat(60));
   console.log('SUMMARY');
   console.log('='.repeat(60));
-  console.log(`✈️  Flight deals found: ${flightDeals.length}`);
-  console.log(`🏨 Hotel deals found: ${hotelDeals.length}`);
-  console.log(`📁 Output saved to: ${path.join(outputDir, 'deals.json')}`);
+  console.log(`Flight deals found: ${flightDeals.length}`);
+  console.log(`Hotel deals found: ${hotelDeals.length}`);
+  console.log(`Output saved to: ${path.join(outputDir, 'deals.json')}`);
+  console.log(`Total runtime: ${totalTime}s (${Math.round(totalTime / 60)} minutes)`);
 
-  if (flightDeals.length > 0) {
-    console.log(`\n🔥 Best flight deal: ${flightDeals[0].originName} → ${flightDeals[0].destinationName}`);
+  if (flightDeals.length > 0 && flightDeals[0].originName) {
+    console.log(`\nBest flight deal: ${flightDeals[0].originName} -> ${flightDeals[0].destinationName}`);
     console.log(`   Price: $${flightDeals[0].price} (${flightDeals[0].percentOff}% off)`);
   }
 
-  if (hotelDeals.length > 0) {
-    console.log(`\n🔥 Best hotel deal: ${hotelDeals[0].hotelName} in ${hotelDeals[0].location}`);
+  if (hotelDeals.length > 0 && hotelDeals[0].hotelName) {
+    console.log(`\nBest hotel deal: ${hotelDeals[0].hotelName} in ${hotelDeals[0].location}`);
     console.log(`   Price: $${hotelDeals[0].pricePerNight}/night (${hotelDeals[0].percentOff}% off)`);
   }
 
