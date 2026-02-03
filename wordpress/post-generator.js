@@ -1,13 +1,27 @@
 /**
- * WordPress Post Generator
- * Generates formatted blog posts from scraped deals
+ * WordPress Post Generator & Publisher
+ * Generates formatted blog posts from scraped deals and publishes via REST API
  *
- * Output: HTML content ready for WordPress REST API or manual copy-paste
+ * Environment variables required:
+ * - WORDPRESS_URL: e.g., https://etravelogs.com
+ * - WORDPRESS_USERNAME: WordPress username
+ * - WORDPRESS_APP_PASSWORD: Application password (generate in WP Admin → Users → Profile)
+ * - WORDPRESS_FLIGHT_CATEGORY_ID: Category ID for flight deals (e.g., 39)
+ * - WORDPRESS_HOTEL_CATEGORY_ID: Category ID for hotel deals
  */
 
 const fs = require('fs');
 const path = require('path');
 const { format } = require('date-fns');
+
+// WordPress configuration from environment
+const WP_CONFIG = {
+  url: process.env.WORDPRESS_URL || 'https://etravelogs.com',
+  username: process.env.WORDPRESS_USERNAME,
+  appPassword: process.env.WORDPRESS_APP_PASSWORD,
+  flightCategoryId: parseInt(process.env.WORDPRESS_FLIGHT_CATEGORY_ID) || 39,
+  hotelCategoryId: parseInt(process.env.WORDPRESS_HOTEL_CATEGORY_ID) || 40
+};
 
 /**
  * Generate a flight deals blog post
@@ -231,14 +245,159 @@ async function generatePosts() {
   return { flightPost, hotelPost };
 }
 
-// Run if called directly
-if (require.main === module) {
-  generatePosts()
-    .then(() => process.exit(0))
-    .catch(err => {
-      console.error('Error:', err);
-      process.exit(1);
+/**
+ * Publish a post to WordPress via REST API
+ */
+async function publishToWordPress(post, categoryId, postType = 'flight') {
+  if (!WP_CONFIG.username || !WP_CONFIG.appPassword) {
+    console.log(`Skipping WordPress publish - credentials not configured`);
+    return null;
+  }
+
+  const apiUrl = `${WP_CONFIG.url}/wp-json/wp/v2/posts`;
+  const auth = Buffer.from(`${WP_CONFIG.username}:${WP_CONFIG.appPassword}`).toString('base64');
+
+  // First, check if a post with this slug already exists today
+  const existingCheck = await fetch(`${apiUrl}?slug=${post.slug}&status=any`, {
+    headers: { 'Authorization': `Basic ${auth}` }
+  });
+  const existingPosts = await existingCheck.json();
+
+  if (existingPosts.length > 0) {
+    console.log(`Post already exists: ${post.title} (ID: ${existingPosts[0].id})`);
+    // Update existing post instead of creating duplicate
+    const updateUrl = `${apiUrl}/${existingPosts[0].id}`;
+    const updateResponse = await fetch(updateUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: post.content,
+        excerpt: post.excerpt
+      })
     });
+
+    if (!updateResponse.ok) {
+      const error = await updateResponse.text();
+      throw new Error(`Failed to update post: ${error}`);
+    }
+
+    const updated = await updateResponse.json();
+    console.log(`Updated existing post: ${updated.link}`);
+    return updated;
+  }
+
+  // Create new post
+  const postData = {
+    title: post.title,
+    slug: post.slug,
+    content: post.content,
+    excerpt: post.excerpt,
+    status: 'publish',
+    categories: [categoryId],
+    tags: [] // Tags would need to be created/looked up first
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(postData)
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to create post: ${error}`);
+  }
+
+  const created = await response.json();
+  console.log(`Published new post: ${created.link}`);
+  return created;
 }
 
-module.exports = { generateFlightDealsPost, generateHotelDealsPost, generatePosts };
+/**
+ * Generate posts and publish to WordPress
+ */
+async function generateAndPublish() {
+  const outputDir = path.join(__dirname, '..', 'output');
+
+  // Load deals
+  let flightDeals = [];
+  let hotelDeals = [];
+
+  try {
+    const flightData = JSON.parse(fs.readFileSync(path.join(outputDir, 'flights.json'), 'utf8'));
+    flightDeals = flightData.deals || [];
+    console.log(`Loaded ${flightDeals.length} flight deals`);
+  } catch (e) {
+    console.log('No flight deals found');
+  }
+
+  try {
+    const hotelData = JSON.parse(fs.readFileSync(path.join(outputDir, 'hotels.json'), 'utf8'));
+    hotelDeals = hotelData.deals || [];
+    console.log(`Loaded ${hotelDeals.length} hotel deals`);
+  } catch (e) {
+    console.log('No hotel deals found');
+  }
+
+  const today = new Date();
+  const results = { flights: null, hotels: null };
+
+  // Generate and publish flight deals post (if we have deals)
+  if (flightDeals.length > 0) {
+    const flightPost = generateFlightDealsPost(flightDeals, today);
+    console.log(`\nPublishing: ${flightPost.title}`);
+    try {
+      results.flights = await publishToWordPress(flightPost, WP_CONFIG.flightCategoryId, 'flight');
+    } catch (err) {
+      console.error('Failed to publish flight deals:', err.message);
+    }
+  }
+
+  // Generate and publish hotel deals post (if we have deals)
+  if (hotelDeals.length > 0) {
+    const hotelPost = generateHotelDealsPost(hotelDeals, today);
+    console.log(`\nPublishing: ${hotelPost.title}`);
+    try {
+      results.hotels = await publishToWordPress(hotelPost, WP_CONFIG.hotelCategoryId, 'hotel');
+    } catch (err) {
+      console.error('Failed to publish hotel deals:', err.message);
+    }
+  }
+
+  console.log('\n=== Publishing Complete ===');
+  if (results.flights) console.log(`Flight deals: ${results.flights.link}`);
+  if (results.hotels) console.log(`Hotel deals: ${results.hotels.link}`);
+
+  return results;
+}
+
+// Run if called directly
+if (require.main === module) {
+  const args = process.argv.slice(2);
+
+  if (args.includes('--publish')) {
+    // Generate and publish to WordPress
+    generateAndPublish()
+      .then(() => process.exit(0))
+      .catch(err => {
+        console.error('Error:', err);
+        process.exit(1);
+      });
+  } else {
+    // Just generate local files (original behavior)
+    generatePosts()
+      .then(() => process.exit(0))
+      .catch(err => {
+        console.error('Error:', err);
+        process.exit(1);
+      });
+  }
+}
+
+module.exports = { generateFlightDealsPost, generateHotelDealsPost, generatePosts, generateAndPublish, publishToWordPress };
