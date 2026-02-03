@@ -8,6 +8,7 @@
     "scrape:hotels": "node scrapers/hotel-deals.js",
     "scrape:all": "node scrapers/run-all.js",
     "generate:wp-post": "node wordpress/post-generator.js",
+    "publish:wp": "node wordpress/post-generator.js --publish",
     "gyg:search": "node tools/gyg-link-generator.js",
     "test": "node scrapers/test-scraper.js"
   },
