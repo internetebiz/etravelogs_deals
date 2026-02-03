@@ -149,6 +149,80 @@ After scraping runs:
 ### Future: Booking.com, Skyscanner
 When you get approved, add credentials to `.env` and update scraper link generators.
 
+## ⚠️ Known Issues (February 2026)
+
+**Status: WordPress auto-publishing is DISABLED due to critical data quality issues.**
+
+### Critical Issues
+
+| Issue | Description | Impact |
+|-------|-------------|--------|
+| **$1 Flight Prices** | Scraper returns $1 for all flights instead of real prices | Misleading/inaccurate data |
+| **Broken Expedia Links** | URLs are double-encoded (`%253A` instead of `:`) causing "wrong turn" errors | Links don't work |
+| **Hotel Price Mismatch** | Scraped prices ($104/night) don't match Expedia actual prices ($262+/night) | Misrepresentation |
+| **Generic Hotel Links** | Links go to city search, not specific hotel | Poor user experience |
+
+### Root Causes
+
+1. **Google Flights/Hotels Anti-Scraping**
+   - Heavy JavaScript rendering
+   - Dynamic content that changes frequently
+   - Anti-bot protections
+   - DOM structure changes without notice
+
+2. **Price Extraction Failures**
+   - Selectors may be outdated
+   - Prices load asynchronously and may not be captured
+   - Default/fallback values ($1) being used when extraction fails
+
+3. **URL Encoding Issues**
+   - `URLSearchParams` double-encodes special characters
+   - Expedia expects specific URL format with unencoded `:`, `,`, `/`
+
+### What's Disabled
+
+- ❌ Daily scheduled runs (cron)
+- ❌ WordPress auto-publishing
+- ✅ Manual workflow runs (for debugging)
+- ✅ Artifact uploads (for inspection)
+
+### Recommended Alternatives
+
+Instead of scraping, consider:
+
+1. **Deal Aggregator APIs**
+   - Skyscanner API (requires partnership)
+   - Amadeus API (requires approval)
+   - Travelport API
+
+2. **RSS Feeds from Deal Sites**
+   - The Points Guy deals feed
+   - Secret Flying
+   - Scott's Cheap Flights (if you have subscription)
+
+3. **Manual Curation**
+   - Continue posting deals manually as before
+   - Use the WordPress post generator for formatting only
+   - Verify prices before publishing
+
+4. **Affiliate Network Deep Links**
+   - Use Expedia's official deep link generator
+   - CJ Affiliate link builder
+   - Avoid programmatic link construction
+
+### To Re-enable Automation
+
+Before re-enabling, the following must be fixed:
+
+1. [ ] Flight price extraction returning accurate prices
+2. [ ] Hotel price extraction matching actual booking prices
+3. [ ] Expedia deep links working correctly
+4. [ ] Hotel links going to specific properties
+5. [ ] Add price validation (reject obviously wrong prices like $1)
+6. [ ] Test full workflow end-to-end before enabling schedule
+
+---
+
 ## Troubleshooting
 
 ### Scraper Times Out
