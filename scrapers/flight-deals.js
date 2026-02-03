@@ -68,17 +68,20 @@ const CONFIG = {
 
 /**
  * Generate Expedia deeplink for a flight search
+ * Note: Expedia expects colons, commas, and slashes unencoded in leg parameters
  */
 function generateExpediaLink(origin, dest, departDate, returnDate, passengers = 1) {
   const baseUrl = 'https://www.expedia.com/Flights-Search';
-  const params = new URLSearchParams({
-    trip: 'roundtrip',
-    leg1: `from:${origin},to:${dest},departure:${format(departDate, 'MM/dd/yyyy')}TANYT`,
-    leg2: `from:${dest},to:${origin},departure:${format(returnDate, 'MM/dd/yyyy')}TANYT`,
-    passengers: `adults:${passengers}`,
-    AFFCID: `US.DIRECT.PHG.${CONFIG.expediaPublisherId}.${CONFIG.expediaAffiliateTag}`
-  });
-  return `${baseUrl}?${params.toString()}`;
+  const departStr = format(departDate, 'MM/dd/yyyy');
+  const returnStr = format(returnDate, 'MM/dd/yyyy');
+
+  // Build URL manually - Expedia expects special chars unencoded in leg params
+  const leg1 = `from:${origin},to:${dest},departure:${departStr}TANYT`;
+  const leg2 = `from:${dest},to:${origin},departure:${returnStr}TANYT`;
+  const passengersParam = `adults:${passengers}`;
+  const affcid = `US.DIRECT.PHG.${CONFIG.expediaPublisherId}.${CONFIG.expediaAffiliateTag}`;
+
+  return `${baseUrl}?trip=roundtrip&leg1=${leg1}&leg2=${leg2}&passengers=${passengersParam}&AFFCID=${affcid}`;
 }
 
 /**

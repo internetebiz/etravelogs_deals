@@ -25,75 +25,44 @@ const WP_CONFIG = {
 
 /**
  * Generate a flight deals blog post
+ * Uses simple HTML format (no Gutenberg blocks) for better compatibility
  */
 function generateFlightDealsPost(deals, date = new Date()) {
   const dateStr = format(date, 'MMMM d, yyyy');
-  const shortDate = format(date, 'MMM d');
 
   const title = `Today's Best Flight Deals – ${dateStr}`;
   const slug = `todays-best-flight-deals-${format(date, 'yyyy-MM-dd')}`;
 
-  let content = `
-<p>Looking for unbeatable flight deals today? Here are the top offers verified as of ${dateStr}:</p>
-
-<!-- wp:heading {"level":2} -->
-<h2>🔥 Today's Top Flight Deals</h2>
-<!-- /wp:heading -->
-
-`;
+  let content = `<p>Looking for unbeatable flight deals today? Here are the top offers verified as of ${dateStr}:</p>\n\n`;
 
   if (deals.length === 0) {
     content += `<p>Check back later - we're still searching for today's best deals!</p>`;
   } else {
     deals.forEach((deal, index) => {
-      const emoji = index === 0 ? '🏆' : (index < 3 ? '✈️' : '🎫');
+      const emoji = index === 0 ? '🏆' : '✈️';
+      const discount = deal.percentOff > 0 ? ` (${deal.percentOff}% off typical $${deal.typicalPrice})` : '';
 
-      content += `
-<!-- wp:group {"className":"deal-card"} -->
-<div class="wp-block-group deal-card" style="background: #f7fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-
-<h3>${emoji} ${deal.originName} → ${deal.destinationName}, ${deal.destinationCountry}</h3>
-
-<p><strong>💰 Price: $${deal.price}</strong> ${deal.percentOff > 0 ? `<span style="color: green;">(${deal.percentOff}% off typical $${deal.typicalPrice})</span>` : ''}</p>
-
-<p>📅 Sample dates: ${deal.departDate} to ${deal.returnDate} (${deal.tripLength})</p>
-
-<p>
-  <a href="${deal.expediaLink}" target="_blank" rel="nofollow sponsored" style="display: inline-block; padding: 10px 20px; background: #e53e3e; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-    Book on Expedia →
-  </a>
-</p>
-
-</div>
-<!-- /wp:group -->
-`;
+      content += `<p><strong>${emoji} ${deal.originName} → ${deal.destinationName}, ${deal.destinationCountry} – $${deal.price}</strong>${discount}</p>\n`;
+      content += `<p>- Date: ${deal.departDate} to ${deal.returnDate} (${deal.tripLength})</p>\n`;
+      content += `<p>- Deal: $${deal.price} flight on ${deal.departDate}</p>\n`;
+      content += `<p><a href="${deal.expediaLink}" target="_blank" rel="nofollow sponsored" style="color: #e53e3e; font-weight: bold;">Book Now</a></p>\n\n`;
     });
   }
 
-  content += `
-<!-- wp:heading {"level":2} -->
-<h2>💡 Tips to Get These Prices</h2>
-<!-- /wp:heading -->
+  content += `<h2>💡 Tips to Get These Prices</h2>\n`;
+  content += `<ul>\n`;
+  content += `<li>Prices change frequently - book quickly when you see a deal</li>\n`;
+  content += `<li>Use incognito mode to avoid price tracking</li>\n`;
+  content += `<li>Be flexible with dates (±3 days can save hundreds)</li>\n`;
+  content += `<li>Check our <a href="https://etravelogs.com/miles-points-vs-cash-calculator/">Miles vs Cash Calculator</a> to see if points are better</li>\n`;
+  content += `</ul>\n\n`;
 
-<ul>
-  <li>Prices change frequently - book quickly when you see a deal</li>
-  <li>Use incognito mode to avoid price tracking</li>
-  <li>Be flexible with dates (±3 days can save hundreds)</li>
-  <li>Check our <a href="https://etravelogs.com/miles-points-vs-cash-calculator/">Miles vs Cash Calculator</a> to see if points are better</li>
-</ul>
+  content += `<h2>🧮 Should You Use Miles Instead?</h2>\n`;
+  content += `<p>Before booking with cash, check if your miles offer better value:</p>\n`;
+  content += `[miles_calculator]\n\n`;
 
-<!-- wp:heading {"level":2} -->
-<h2>🧮 Should You Use Miles Instead?</h2>
-<!-- /wp:heading -->
-
-<p>Before booking with cash, check if your miles offer better value:</p>
-
-[miles_calculator]
-
-<p>Subscribe to our newsletter to get deals like these delivered to your inbox!</p>
-
-<p><em>Deals found on ${dateStr}. Prices subject to change. Some links are affiliate links.</em></p>
-`;
+  content += `<p>Subscribe to our newsletter to get deals like these delivered to your inbox!</p>\n`;
+  content += `<p><em>Deals found on ${dateStr}. Prices subject to change. Some links are affiliate links.</em></p>`;
 
   return {
     title,
@@ -107,6 +76,7 @@ function generateFlightDealsPost(deals, date = new Date()) {
 
 /**
  * Generate a hotel deals blog post
+ * Uses simple HTML format (no Gutenberg blocks) for better compatibility
  */
 function generateHotelDealsPost(deals, date = new Date()) {
   const dateStr = format(date, 'MMMM d, yyyy');
@@ -114,61 +84,36 @@ function generateHotelDealsPost(deals, date = new Date()) {
   const title = `Today's Best Hotel Deals – ${dateStr}`;
   const slug = `todays-best-hotel-deals-${format(date, 'yyyy-MM-dd')}`;
 
-  let content = `
-<p>Looking for unbeatable hotel deals today? Here are the top properties with at least 25% off, verified as of ${dateStr}:</p>
-
-<!-- wp:heading {"level":2} -->
-<h2>🏨 Today's Top Hotel Deals</h2>
-<!-- /wp:heading -->
-
-`;
+  let content = `<p>Looking for unbeatable hotel deals today? Here are the top properties with at least 25% off, verified as of ${dateStr}:</p>\n\n`;
 
   if (deals.length === 0) {
     content += `<p>Check back later - we're still searching for today's best deals!</p>`;
   } else {
     deals.forEach((deal, index) => {
-      const emoji = index === 0 ? '🏆' : (index < 3 ? '🏨' : '🛏️');
+      const emoji = index === 0 ? '🏆' : '🏨';
       const stars = deal.rating ? '⭐'.repeat(Math.min(Math.floor(deal.rating), 5)) : '';
+      const discount = deal.percentOff > 0 ? ` (${deal.percentOff}% off)` : '';
 
-      content += `
-<!-- wp:group {"className":"deal-card"} -->
-<div class="wp-block-group deal-card" style="background: #f7fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-
-<h3>${emoji} ${deal.hotelName}</h3>
-<p>📍 ${deal.location}, ${deal.country} ${stars}</p>
-
-<p><strong>💰 $${deal.pricePerNight}/night</strong> ${deal.percentOff > 0 ? `<span style="color: green;">(${deal.percentOff}% off ${deal.originalPrice ? '$' + deal.originalPrice : 'regular price'})</span>` : ''}</p>
-
-<p>📅 Sample stay: ${deal.checkinDate} - ${deal.checkoutDate} (${deal.nights} nights)</p>
-
-<p>
-  <a href="${deal.expediaSearchLink}" target="_blank" rel="nofollow sponsored" style="display: inline-block; padding: 10px 20px; background: #2b6cb0; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-    Check Availability →
-  </a>
-</p>
-
-</div>
-<!-- /wp:group -->
-`;
+      content += `<p><strong>${emoji} ${deal.hotelName}</strong> – ${deal.location}, ${deal.country} ${stars}</p>\n`;
+      content += `<p><strong>Nightly Rate:</strong> $${deal.pricePerNight}/night${discount}</p>\n`;
+      content += `<p><strong>Total:</strong> for ${deal.nights || 1} night(s) (all taxes and fees included)</p>\n`;
+      if (deal.rating) {
+        content += `<p><strong>Reviews:</strong> ${deal.rating}/10</p>\n`;
+      }
+      content += `<p><a href="${deal.expediaSearchLink}" target="_blank" rel="nofollow sponsored" style="color: #2b6cb0; font-weight: bold;">Click Here to Book Now!</a></p>\n\n`;
     });
   }
 
-  content += `
-<!-- wp:heading {"level":2} -->
-<h2>💡 Hotel Booking Tips</h2>
-<!-- /wp:heading -->
+  content += `<h2>💡 Hotel Booking Tips</h2>\n`;
+  content += `<ul>\n`;
+  content += `<li>Book directly sometimes offers perks (breakfast, upgrades)</li>\n`;
+  content += `<li>Check if your credit card offers hotel status matches</li>\n`;
+  content += `<li>Use our <a href="https://etravelogs.com/miles-points-vs-cash-calculator/">Calculator</a> to value hotel points</li>\n`;
+  content += `<li>Look for "member prices" - often requires free signup</li>\n`;
+  content += `</ul>\n\n`;
 
-<ul>
-  <li>Book directly sometimes offers perks (breakfast, upgrades)</li>
-  <li>Check if your credit card offers hotel status matches</li>
-  <li>Use our <a href="https://etravelogs.com/miles-points-vs-cash-calculator/">Calculator</a> to value hotel points</li>
-  <li>Look for "member prices" - often requires free signup</li>
-</ul>
-
-<p>Subscribe to our newsletter for weekly hotel deals!</p>
-
-<p><em>Deals found on ${dateStr}. Prices subject to change. Some links are affiliate links.</em></p>
-`;
+  content += `<p>Subscribe to our newsletter for weekly hotel deals!</p>\n`;
+  content += `<p><em>Deals found on ${dateStr}. Prices subject to change. Some links are affiliate links.</em></p>`;
 
   return {
     title,

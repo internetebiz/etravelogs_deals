@@ -61,15 +61,12 @@ const CONFIG = {
  */
 function generateExpediaHotelLink(destination, checkinDate, checkoutDate) {
   const baseUrl = 'https://www.expedia.com/Hotel-Search';
-  const params = new URLSearchParams({
-    destination: destination,
-    startDate: format(checkinDate, 'MM/dd/yyyy'),
-    endDate: format(checkoutDate, 'MM/dd/yyyy'),
-    rooms: '1',
-    adults: '2',
-    AFFCID: `US.DIRECT.PHG.${CONFIG.expediaPublisherId}.${CONFIG.expediaAffiliateTag}`
-  });
-  return `${baseUrl}?${params.toString()}`;
+  const checkinStr = format(checkinDate, 'MM/dd/yyyy');
+  const checkoutStr = format(checkoutDate, 'MM/dd/yyyy');
+  const destEncoded = encodeURIComponent(destination);
+  const affcid = `US.DIRECT.PHG.${CONFIG.expediaPublisherId}.${CONFIG.expediaAffiliateTag}`;
+
+  return `${baseUrl}?destination=${destEncoded}&startDate=${checkinStr}&endDate=${checkoutStr}&rooms=1&adults=2&AFFCID=${affcid}`;
 }
 
 /**
@@ -77,15 +74,13 @@ function generateExpediaHotelLink(destination, checkinDate, checkoutDate) {
  */
 function generateExpediaHotelDirectLink(hotelName, destination, checkinDate, checkoutDate) {
   const baseUrl = 'https://www.expedia.com/Hotel-Search';
-  const params = new URLSearchParams({
-    destination: destination,
-    startDate: format(checkinDate, 'MM/dd/yyyy'),
-    endDate: format(checkoutDate, 'MM/dd/yyyy'),
-    hotelName: hotelName,
-    sort: 'RECOMMENDED',
-    AFFCID: `US.DIRECT.PHG.${CONFIG.expediaPublisherId}.${CONFIG.expediaAffiliateTag}`
-  });
-  return `${baseUrl}?${params.toString()}`;
+  const checkinStr = format(checkinDate, 'MM/dd/yyyy');
+  const checkoutStr = format(checkoutDate, 'MM/dd/yyyy');
+  const destEncoded = encodeURIComponent(destination);
+  const hotelEncoded = encodeURIComponent(hotelName);
+  const affcid = `US.DIRECT.PHG.${CONFIG.expediaPublisherId}.${CONFIG.expediaAffiliateTag}`;
+
+  return `${baseUrl}?destination=${destEncoded}&startDate=${checkinStr}&endDate=${checkoutStr}&hotelName=${hotelEncoded}&sort=RECOMMENDED&AFFCID=${affcid}`;
 }
 
 /**
