@@ -1,7 +1,7 @@
 name: Daily Deal Scraper
 
 on:
-  # DISABLED: Schedule disabled until WordPress integration is tested
+  # DISABLED: Schedule disabled until optimization is complete
   # Run daily at 6 AM EST (11:00 UTC)
   # schedule:
   #   - cron: '0 11 * * *'
@@ -43,11 +43,6 @@ jobs:
         run: |
           echo "EXPEDIA_AFFILIATE_TAG=${{ secrets.EXPEDIA_AFFILIATE_TAG }}" >> .env
           echo "EXPEDIA_PUBLISHER_ID=${{ secrets.EXPEDIA_PUBLISHER_ID }}" >> .env
-          echo "WORDPRESS_URL=${{ secrets.WORDPRESS_URL }}" >> .env
-          echo "WORDPRESS_USERNAME=${{ secrets.WORDPRESS_USERNAME }}" >> .env
-          echo "WORDPRESS_APP_PASSWORD=${{ secrets.WORDPRESS_APP_PASSWORD }}" >> .env
-          echo "WORDPRESS_FLIGHT_CATEGORY_ID=${{ secrets.WORDPRESS_FLIGHT_CATEGORY_ID }}" >> .env
-          echo "WORDPRESS_HOTEL_CATEGORY_ID=${{ secrets.WORDPRESS_HOTEL_CATEGORY_ID }}" >> .env
 
       - name: Show rotation info
         run: |
@@ -60,14 +55,16 @@ jobs:
         run: npm run scrape:all
         timeout-minutes: 18
 
-      - name: Publish to WordPress
-        run: npm run publish:wp
-        env:
-          WORDPRESS_URL: ${{ secrets.WORDPRESS_URL }}
-          WORDPRESS_USERNAME: ${{ secrets.WORDPRESS_USERNAME }}
-          WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
-          WORDPRESS_FLIGHT_CATEGORY_ID: ${{ secrets.WORDPRESS_FLIGHT_CATEGORY_ID }}
-          WORDPRESS_HOTEL_CATEGORY_ID: ${{ secrets.WORDPRESS_HOTEL_CATEGORY_ID }}
+      # DISABLED: WordPress auto-publishing disabled due to data quality issues
+      # See README.md "Known Issues" section for details
+      # - name: Publish to WordPress
+      #   run: npm run publish:wp
+      #   env:
+      #     WORDPRESS_URL: ${{ secrets.WORDPRESS_URL }}
+      #     WORDPRESS_USERNAME: ${{ secrets.WORDPRESS_USERNAME }}
+      #     WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
+      #     WORDPRESS_FLIGHT_CATEGORY_ID: ${{ secrets.WORDPRESS_FLIGHT_CATEGORY_ID }}
+      #     WORDPRESS_HOTEL_CATEGORY_ID: ${{ secrets.WORDPRESS_HOTEL_CATEGORY_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
