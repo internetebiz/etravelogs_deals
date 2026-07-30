@@ -1,0 +1,64 @@
+name: Expedia affiliate link QA
+
+# Verifies that daily-deals posts on etravelogs.com carry Partnerize attribution and
+# land users on a bookable page, not a name search.
+#
+# This replaces a Claude Code cloud routine that ran the same check. That routine had two
+# structural problems this workflow does not:
+#   1. It carried its OWN pasted copy of the script, which went stale 2026-07-10 and
+#      reported PASS every day through a 20-day capture outage. Here the workflow runs the
+#      committed file, so it cannot drift from what is in the repo.
+#   2. Its sandbox egress proxy denied all connections to etravelogs.com:443
+#      (connect_rejected), so the check silently could not run at all.
+#
+# The script needs no dependencies - it uses the global fetch built into Node 18+.
+
+on:
+  schedule:
+    # 13:15 UTC = 09:15 America/New_York during EDT (08:15 during EST - GitHub cron is
+    # always UTC and does not follow daylight saving).
+    - cron: '15 13 * * *'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Days of daily-deals posts to check'
+        required: false
+        default: '3'
+      sample:
+        description: 'Links to resolve per post (each one follows the real redirect chain)'
+        required: false
+        default: '6'
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run affiliate link QA
+        env:
+          DAYS: ${{ github.event.inputs.days || '3' }}
+          SAMPLE: ${{ github.event.inputs.sample || '6' }}
+        run: |
+          set -o pipefail
+          status=0
+          {
+            echo '## Expedia affiliate link QA'
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          node tools/expedia-link-qa.js --days="$DAYS" --sample="$SAMPLE" 2>&1 \
+            | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # exit 0 = PASS, 1 = FAIL (broken/degraded links), 2 = ERROR (check could not run).
+          # Both non-zero cases must fail the job - an ERROR that looks green is how the
+          # previous setup stayed quiet for three weeks.
+          exit $status
